@@ -1,0 +1,49 @@
+<lui-dialog ng-init="init()" style="width: 80%; height: 80%;">
+	<lui-dialog-header>
+		<lui-dialog-title>Prepare Data for Forecasting</lui-dialog-title>
+	</lui-dialog-header>
+	<lui-dialog-body>
+		<textarea name='qfDate' id='qfDate' placeholder='Select a date'></textarea>
+		<textarea name='qfDateAggr' id='qfDateAggr' placeholder='Select a date aggregation level'></textarea>
+		<textarea name='qfDatePeriod' id='qfDatePeriod' placeholder='Input how many forecast periods'></textarea>
+		<textarea name='qfGroup' class='qfGroup' placeholder='Create forecasting level'></textarea>
+		<div class="qfMesButton">
+			<button ng-click="input.addMeasure()" class="lui-button">
+				<span class="lui-button__icon  lui-icon  lui-icon--plus"></span>
+			</button>
+			<button ng-click="input.removeMeasure()" ng-disabled="input.measuresCount == 1" class="lui-button">
+				<span class="lui-button__icon  lui-icon  lui-icon--minus"></span>
+			</button>
+		</div>
+		<div class="qfTableContainer" ng-repeat="table in input.tables">
+			<table>
+				<tr>
+					<th ng-repeat="field in input.tables.fields">{{field}}</th>
+				</tr>
+				<tr>
+					<td ng-repeat="field in input.tables.fields">
+						<select class="lui-select qfMeasureAggr" ng-model="measure.aggr">
+							<option value="dim" selected>Dimension</option>
+							<option value="mes">Measure</option>
+						</select>
+					</td>
+				</tr>
+			</table>
+		</div>
+		<!-- <div class="qfMeasureContainer" ng-repeat="measure in input.measures">
+			<select class="lui-select qfMeasureAggr" ng-model="measure.aggr">
+				<option value="Sum" selected>Sum</option>
+				<option value="Avg">Avg</option>
+				<option value="Count">Count</option>
+				<option value="Min">Min</option>
+				<option value="Max">Max</option>
+			</select>
+			<textarea class='qfMeasure' name='qfMeasure{{measure.id}}' ng-model="measure.formula"
+				placeholder='Select forecasting measures'></textarea>	
+		</div> -->
+	</lui-dialog-body>
+	<lui-dialog-footer>
+		<button class="lui-button  lui-dialog__footer-button" ng-click="close();">Close</button>
+		<button class="lui-button lui-button--success lui-dialog__footer-button" ng-click="input.next()">Next</button>
+	</lui-dialog-footer>
+</lui-dialog>
