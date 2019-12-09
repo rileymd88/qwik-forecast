@@ -1,49 +1,71 @@
 <lui-dialog ng-init="init()" style="width: 80%; height: 80%;">
 	<lui-dialog-header>
-		<lui-dialog-title>Prepare Data for Forecasting</lui-dialog-title>
+		<lui-dialog-title>Qwik Forecast</lui-dialog-title>
 	</lui-dialog-header>
-	<lui-dialog-body>
-		<textarea name='qfDate' id='qfDate' placeholder='Select a date'></textarea>
-		<textarea name='qfDateAggr' id='qfDateAggr' placeholder='Select a date aggregation level'></textarea>
-		<textarea name='qfDatePeriod' id='qfDatePeriod' placeholder='Input how many forecast periods'></textarea>
-		<textarea name='qfGroup' class='qfGroup' placeholder='Create forecasting level'></textarea>
-		<div class="qfMesButton">
-			<button ng-click="input.addMeasure()" class="lui-button">
-				<span class="lui-button__icon  lui-icon  lui-icon--plus"></span>
-			</button>
-			<button ng-click="input.removeMeasure()" ng-disabled="input.measuresCount == 1" class="lui-button">
-				<span class="lui-button__icon  lui-icon  lui-icon--minus"></span>
-			</button>
+	<lui-dialog-body class="qwikForecastBody">
+		<div ng-show='input.step == 1'>
+			<textarea name='qfDate' id='qfDate' placeholder='Select a date'></textarea>
+			<textarea name='qfDateAggr' id='qfDateAggr' placeholder='Select a date aggregation level'></textarea>
+			<textarea name='qfDatePeriod' id='qfDatePeriod' placeholder='Input how many forecast periods'></textarea>
 		</div>
-		<div class="qfTableContainer" ng-repeat="table in input.tables">
-			<table>
-				<tr>
-					<th ng-repeat="field in input.tables.fields">{{field}}</th>
-				</tr>
-				<tr>
-					<td ng-repeat="field in input.tables.fields">
-						<select class="lui-select qfMeasureAggr" ng-model="measure.aggr">
-							<option value="dim" selected>Dimension</option>
-							<option value="mes">Measure</option>
-						</select>
-					</td>
-				</tr>
-			</table>
-		</div>
-		<!-- <div class="qfMeasureContainer" ng-repeat="measure in input.measures">
-			<select class="lui-select qfMeasureAggr" ng-model="measure.aggr">
-				<option value="Sum" selected>Sum</option>
-				<option value="Avg">Avg</option>
-				<option value="Count">Count</option>
-				<option value="Min">Min</option>
-				<option value="Max">Max</option>
+		<div class="qfDimMesLabel" ng-show='input.step == 2'>Choose which fields you would like to be have as dimensions which can be filtered
+			and which fields should be measures which can be forecasted</div>
+		<div ng-show='input.step == 2' ng-repeat="tableField in input.tableFields" class="qfTableContainer">
+			<select id="select{{tableField.field}}" ng-model="field" class="lui-select qfFieldType"
+				ng-options="template.value as template.name for template in input.fieldType">
 			</select>
-			<textarea class='qfMeasure' name='qfMeasure{{measure.id}}' ng-model="measure.formula"
-				placeholder='Select forecasting measures'></textarea>	
-		</div> -->
+			<div>{{tableField.field}}</div>
+		</div>
+		<div ng-show='input.step == 3 && !input.reloading'>
+			<div class='qfLabel'>Forecasting Analytic Connection</div>
+			<div ng-if='input.selectFunction'>
+				<textarea name='qfFunction' id='qfFunction' value='PythonProphet.Prophet'
+					placeholder='Select your Python Forecasting Function'></textarea>
+			</div>
+			<div ng-if='!input.selectFunction'>
+				PythonProphet.Prophet
+			</div>
+			<div class='qfLabel'>Create your base measure</div>
+			<div class="pp-component pp-string-component" tcl="string">
+				<div class="value">
+					<div class="lui-input-group">
+						<input id="qfInput"
+							class="lui-input lui-input-group__item lui-input-group__input ng-pristine ng-untouched ng-valid ng-empty ng-valid-maxlength"
+							expression-type="measure" ng-model="input.formula" class="is-expression" ng-change="change()"
+							qva-model-onkeyup="" tid="field" aria-invalid="false">
+						<button
+							class="lui-button  lui-input-group__item  lui-input-group__button qwikTableFormulaButton"
+							pp-expression-editor="input.formula" pp-expression-editor-on-apply="input.formula = value"
+							expression-type="measure" q-title-translation="Tooltip.OpenExpressionEditor"
+							title="Open Expression editor" ng-click="input.onFormulaButtonClicked()">
+							<span class="lui-button__icon  lui-icon  lui-icon--expression edit-expression"></span>
+						</button>
+					</div>
+				</div>
+			</div>
+			<div class='qfLabel'>Master Item Dimension: Forecast Date</div>
+			<textarea disabled class="lui-textarea">{{input.masterDimension}}</textarea>
+			<div class='qfLabel'>Master Item Measure: Forecast</div>
+			<textarea disabled class="lui-textarea">{{input.masterMeasure}}</textarea>
+			<div class='qfLabel'>Addition to Load Script</div>
+			<textarea disabled class="lui-textarea script">{{input.script}}</textarea>
+		</div>
+		<div class="qfReloadContainer" ng-show="input.step == 4">
+			<div ng-show="input.reloading" class="sbl-circ-path"></div>
+			<div class='qfReloadMsg'>{{input.reloadMsg}}</div>
+		</div>
 	</lui-dialog-body>
 	<lui-dialog-footer>
 		<button class="lui-button  lui-dialog__footer-button" ng-click="close();">Close</button>
-		<button class="lui-button lui-button--success lui-dialog__footer-button" ng-click="input.next()">Next</button>
+		<button ng-show="input.step >= 2" class="lui-button  lui-dialog__footer-button"
+			ng-click="input.step = input.step -1">Back</button>
+		<button ng-show="input.step == 1" class="lui-button lui-button--success lui-dialog__footer-button"
+			ng-click="input.next1()">Next</button>
+		<button ng-show="input.step == 2" class="lui-button lui-button--success lui-dialog__footer-button"
+			ng-click="input.next2()">Next</button>
+		<button ng-show="input.step == 3" class="lui-button lui-button--success lui-dialog__footer-button"
+			ng-click="input.next3()" ng-disabled="input.formula.length <= 1">Reload App & Create Master Items</button>
+		<button ng-show="!input.reloading && !input.error && input.step == 4" class="lui-button lui-button--success lui-dialog__footer-button"
+		 ng-click="input.createLineChart();close();">Create Line Chart</button>			
 	</lui-dialog-footer>
 </lui-dialog>

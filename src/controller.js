@@ -25,34 +25,132 @@ export default ['$scope', '$element', function ($scope, $element) {
       template: dialogTemplate,
       closeOnEscape: true,
       input: {
+        step: 1,
+        title: 'Prepare Date: Select Date Fields and Parameters',
         fields: $scope.fields,
         dateFields: $scope.dateFields,
-        measures: [{ "id": 1, "aggr": "Sum", "formula": "" }],
-        measuresCount: 1,
-        next: async function () {
-          // Jquery hack due to using tagify lib to get all values
-          for (let i = 0; i < this.measuresCount; i++) {
-            let formula;
+        fieldType: [
+          { "name": "Dimension", "value": "dim" },
+          { "name": "Measure", "value": "mes" }
+        ],
+        field: 'dim',
+        onFormulaButtonClicked: async function (id) {
+          try {
+            $(".lui-button.confirm.button").on('click.qwikForecast', function () {
+              try {
+                this.formula = $(".CodeMirror-line")[0].innerText;
+              }
+              catch (err) {
+                this.formula = '';
+              }
+            });
+          } catch (error) {
+            console.error(error);
+          }
+        },
+        next1: async function () {
+          this.step = 2;
+          //this.title = 'Prepare Data: Select Dimensions and Measures';
+          try {
+            let parentElement = $("#qfDate").parent().children('textarea');
             try {
-              formula = JSON.parse($(".qfMeasure").parent().children('textarea')[i].value)[0].value;
+              this.date = JSON.parse(parentElement[0].value)[0].value;
+              this.masterDimension = `${this.date}_FC`;
             }
             catch {
-              formula = $(".qfMeasure").parent().children('textarea')[i].value;
+              this.date = parentElement[0].value;
             }
-            this.measures[i].formula = formula;
+            this.dateTable = await $scope.getExpression(`Only({<$Field={'${this.date}'}>}$Table)`);
+            if (this.dateTable.length > 1) {
+              this.showTable = true;
+              let factParams = {
+                qDimensions: [{
+                  qDef: {
+                    qFieldDefs: ["$Field"]
+                  }
+                }],
+                qMeasures: [{
+                  qDef: {
+                    qDef: `Sum({<$Table={'${this.dateTable}'}>}1)`
+                  }
+                }],
+                qInitialDataFetch: [{
+                  qHeight: 500,
+                  qWidth: 2
+                }]
+              };
+              try {
+                let cube = await app.createCube(factParams);
+                this.tableFields = cube.layout.qHyperCube.qDataPages[0].qMatrix.map(function (item) {
+                  return { "field": item[0].qText };
+                });
+              } catch (error) {
+                console.error(error);
+              }
+            }
+          } catch (error) {
+            console.error(error);
           }
+        },
+        next2: async function () {
+          //this.title = 'Prepare Front End: Select Measure For Forecasting';
+          // Get field types
+          for (let s = 0; s < $(".qfFieldType option:selected").length; s++) {
+            let fieldType = $(".qfFieldType option:selected")[s].innerText;
+            this.tableFields[s].fieldType = fieldType;
+          }
+          // Get dimension fields
+          let dimsForScript = this.tableFields.filter(function (item) {
+            return item.fieldType == 'Dimension';
+          }).map(key => `[${key.field}]`).join(',\n');
+          this.script = "///$tab Qwik Forecast\r\n";
+          this.script += `[TMP_${this.dateTable}]:\n`;
+          this.script += `LOAD\n`;
+          this.script += `*,\n`;
+
           let parentElement = $("#qfDate").parent().children('textarea');
-          try {
-            this.date = JSON.parse(parentElement[0].value)[0].value;
-          }
-          catch {
-            this.date = parentElement[0].value;
-          }
           try {
             this.dateAggr = JSON.parse(parentElement[1].value)[0].value;
           }
           catch {
             this.dateAggr = parentElement[1].value;
+          }
+          switch (this.dateAggr) {
+            case 'Daily':
+              this.script = `[${this.date}],\n`;
+              break;
+            case 'Weekly':
+              this.script += `WeekStart([${this.date}]) as [${this.date}_FC]\n`;
+              break;
+            case 'Monthly':
+              this.script += `MonthStart([${this.date}]) as [${this.date}_FC]\n`;
+              break;
+          }
+          this.script += `RESIDENT [${this.dateTable}];\n`;
+          this.script += `DROP TABLE [${this.dateTable}];\n\n`;
+          this.script += `TMP_FC:\n`;
+          this.script += `LOAD\n`;
+          this.script += `1 as FutureFlag,\n`;
+          this.script += `${dimsForScript}\n`;
+          this.script += `RESIDENT [TMP_${this.dateTable}];\n\n`;
+          this.script += `TMP_MAX_DATE:\n`;
+          this.script += `LOAD\n`;
+          this.script += `Max([${this.date}_FC]) as MaxDate\n`;
+          this.script += `RESIDENT [TMP_${this.dateTable}];\n\n`;
+          this.script += `LET vMaxFCDate = Peek('MaxDate', 0, 'TMP_MAX_DATE');\n`;
+          this.script += `DROP TABLE TMP_MAX_DATE;\n\n`;
+          this.script += `JOIN(TMP_FC)\n`;
+          this.script += `LOAD\n`;
+          switch (this.dateAggr) {
+            case 'Daily':
+              this.script += `Date($(vMaxFCDate) + RowNo()) as [${this.date}_FC]\n`;
+              break;
+            case 'Weekly':
+              this.script += `Date($(vMaxFCDate) + (RowNo() * 7)) as [${this.date}_FC]\n`;
+              break;
+            case 'Monthly':
+              this.script += `Date(AddMonths($(vMaxFCDate), RowNo())) as [${this.date}_FC]\n`;
+              break;
           }
           try {
             this.datePeriod = JSON.parse(parentElement[2].value)[0].value;
@@ -60,278 +158,392 @@ export default ['$scope', '$element', function ($scope, $element) {
           catch {
             this.datePeriod = parentElement[2].value;
           }
-          this.key = [];
-          for (let t = 0; t < $(".qfGroup").find(".tagify__tag-text").length; t++) {
-            this.key.push($(".qfGroup").find(".tagify__tag-text")[t].innerText);
-          }
-
-          // Get table information for each field
-          this.fields = [];
-          this.fields.push({ "type": "date", "field": this.date });
-          for (let k = 0; k < this.key.length; k++) {
-            this.fields.push({ "type": "key", "field": this.key[k] });
-          }
-          for (let m = 0; m < this.measures.length; m++) {
-            this.fields.push({ "type": "measure", "field": this.measures[m].formula });
-          }
-          for (let f = 0; f < this.fields.length; f++) {
-            try {
-              let fieldInfo = await enigma.app.getFieldDescription({ "qFieldName": this.fields[f].field });
-              this.fields[f].tables = fieldInfo.qSrcTables;
-            } catch (error) {
-              console.error(error);
+          this.script += `AUTOGENERATE ${this.datePeriod};\n\n`;
+          this.script += `CONCATENATE([TMP_${this.dateTable}])\n`;
+          this.script += `LOAD\n`;
+          this.script += `* RESIDENT TMP_FC;\n`;
+          this.script += `DROP TABLE TMP_FC;\n\n`;
+          this.script += `RENAME TABLE [TMP_${this.dateTable}] to [${this.dateTable}];`;
+          this.step = 3;
+          this.extFunctions = await $scope.getExtFunctions();
+          this.selectFunction = true;
+          for (let e = 0; e < this.extFunctions.length; e++) {
+            if (this.extFunctions[e] == 'PythonProphet.Prophet') {
+              this.selectFunction = false;
             }
           }
-          let factTable;
-          this.fields.filter(function (field) {
-            return field.type == 'measure';
-          }).map(function (field) {
-            if (typeof factTable !== 'undefined' && factTable != field.tables[0]) {
-              console.log('ok');
-            }
-            else {
-              factTable = field.tables[0];
-            }
-            return field;
-          });
-          const params = {
-            "qWindowSize": {
-              "qcx": 0,
-              "qcy": 0
-            },
-            "qNullSize": {
-              "qcx": 0,
-              "qcy": 0
-            },
-            "qCellHeight": 0,
-            "qSyntheticMode": false,
-            "qIncludeSysVars": false
-          };
-          try {
-            this.tablesAndKeys = await enigma.app.getTablesAndKeys(params);
-            console.log(this.tablesAndKeys);
+          if (this.selectFunction) {
+            let functions = document.querySelector('textarea[name=qfFunction]');
+            new Tagify(functions, {
+              enforceWhitelist: true,
+              whitelist: this.extFunctions,
+              callbacks: {
+              },
+              dropdown: {
+                enabled: 0,
+                maxItems: this.extFunctions.length
+              },
+              mode: 'select'
+            });
           }
-          catch (err) {
-            console.error(err);
-          }
-
-          // Check if date is in fact table
-          if (!this.fields[0].tables.includes(factTable)) {
-            // Do stuff
-          }
-
-          let tablesToJoin = this.fields.filter(function (field) {
-            return field.type !== 'measure';
-          }).map(function (field) {
-            return field.tables;
-          }).reduce((prev, curr) => prev.concat(curr), []).filter((item, i, arr) => arr.indexOf(item) === i);
-          tablesToJoin.remove(factTable);
-          // Create script
-          let script = '';
-          this.fcKey = this.key.map(key => `[${key}]`).join('&');
-          if (tablesToJoin.length < 1) {
-            script += `[TMP_QWIK_FORECAST_${factTable}]:\n`;
-            script += `NoConcatenate\n`;
-            script += `LOAD *, \n`;
-            script += `${this.fcKey} AS %FCKey\n`;
-            script += `RESIDENT [${factTable}];\n\n`;
+          let formula;
+          if (typeof this.formula == 'undefined') {
+            formula = '';
           }
           else {
-            let keysNeedingMaps = this.fields.filter(function (item) {
-              return !item.tables.includes(factTable) && item.type == 'key';
-            });
-            console.log(keysNeedingMaps);
-            let factTableScript = `[${factTable}_QWIK]:\n`;
-            factTableScript += `LOAD *,\n`;
-            // Loop through all fields needing maps
-            for (let k = 0; k < keysNeedingMaps.length; k++) {
-              let mappingKey = '';
-              // Find how the field is mapped
-              for (let m = 0; m < this.tablesAndKeys.qk.length; m++) {
-                // Found key
-                if (this.tablesAndKeys.qk[m].qTables.includes(keysNeedingMaps[k].tables[0])) {
-                  console.log('key 1', this.tablesAndKeys.qk[m].qKeyFields[0], keysNeedingMaps[k].tables[0]);
-                  // Check to see if fact table is connected to same key
-                  if (this.tablesAndKeys.qk[m].qTables.includes(factTable)) {
-                    mappingKey = this.tablesAndKeys.qk[m].qKeyFields[0];
-                    script += `[KEY${keysNeedingMaps[k].field}MAP]:\n`;
-                    script += `MAPPING LOAD\n`;
-                    script += `[${mappingKey}],\n`;
-                    script += `[${keysNeedingMaps[k].field}]\n`;
-                    script += `RESIDENT [${keysNeedingMaps[k].tables[0]}];\n\n`;
-                  }
-                  else {
-                    // Remove field table from list
-                    let otherTables = this.tablesAndKeys.qk[m].qTables.remove(keysNeedingMaps[k].tables[0]);
-                    for (let t = 0; t < otherTables.length; t++) {
-                      // Loop through other tables until other is found within qTables
-                      for (let qk = 0; qk < this.tablesAndKeys.qk.length; qk++) {
-                        if (this.tablesAndKeys.qk[qk].qTables.includes(otherTables[t]) && this.tablesAndKeys.qk[qk].qTables.includes(factTable)) {
-                          script += `[KEY${keysNeedingMaps[k].field}_MAP_TMP]:\n`;
-                          script += `MAPPING LOAD\n`;
-                          script += `[${this.tablesAndKeys.qk[m].qKeyFields[0]}],\n`;
-                          script += `[${keysNeedingMaps[k].field}]\n`;
-                          script += `RESIDENT [${keysNeedingMaps[k].tables[0]}];\n\n`;
-                          script += `[KEY${keysNeedingMaps[k].field}MAP]:\n`;
-                          script += `MAPPING LOAD\n`;
-                          script += `[${this.tablesAndKeys.qk[qk].qKeyFields[0]}],\n`;
-                          script += `APPLYMAP('KEY${keysNeedingMaps[k].field}_MAP_TMP', [${this.tablesAndKeys.qk[m].qKeyFields[0]}]) as [${keysNeedingMaps[k].field}]\n`;
-                          script += `RESIDENT [${otherTables[t]}];\n\n`;
-                          console.log('key 2', this.tablesAndKeys.qk[qk].qKeyFields[0], otherTables[t]);
-                          // Add key into fact table
-                          factTableScript += `APPLYMAP('KEY${keysNeedingMaps[k].field}MAP', [${this.tablesAndKeys.qk[qk].qKeyFields[0]}])&`;
-                        }
+            formula = this.formula;
+          }
+          this.masterMeasure = `PythonProphet.Prophet('', 0.05, [${this.date}_FC], ${formula}, ${this.dateAggr.toLowerCase()}, ${this.datePeriod}, 'yhat', 5, '')`;
+        },
+        next3: async function () {
+          this.step = 4;
+          //this.title = 'Finalize Setup';
+          this.reloading = true;
+          this.reloadMsg = 'Getting script\n';
+          let script = await enigma.app.getScript();
+          this.script = script + this.script;
+          this.reloadMsg += 'Setting script\n';
+          await enigma.app.setScript(this.script);
+          this.reloadMsg += 'Reloading app\n';
+          let reload = await enigma.app.doReload();
+          this.reloading = false;
+          if (reload == true) {
+            this.reloadMsg += 'Reload finished\n';
+          }
+          else {
+            this.reloadMsg += 'There was an error while reloading the app. Try debugging this in the load script\n';
+          }
+          let measure = await $scope.createMeasure('Forecast', this.masterMeasure);
+          if (measure) {
+            this.mesId = measure.id;
+            this.reloadMsg += 'Master measure created\n';
+          }
+          else {
+            this.reloadMsg += 'There was an error creating the master measure\n';
+          }
+          let dimension = await $scope.createDimension('Forecast Date', this.masterDimension);
+          if (dimension) {
+            this.dimId = dimension.id;
+            this.reloadMsg += 'Master dimension created\n';
+          }
+          else {
+            this.reloadMsg += 'There was an error creating the master dimension\n';
+          }
+          if (reload && measure && dimension) {
+            this.reloadMsg += 'Setup is finished! You can now click the button to create a new line chart or close this dialog and use the newly created master item dimension and measure';
+            this.error = false;
+          }
+          this.script = '';
+        },
+        createLineChart: async function () {
+          let props = {
+            "qInfo": {
+              "qId": $scope.layoutId,
+              "qType": "linechart"
+            },
+            "qHyperCubeDef": {
+              "qDimensions": [
+                {
+                  "qLibraryId": this.dimId,
+                  "qDef": {
+                    "qGrouping": "N",
+                    "qFieldDefs": [],
+                    "qFieldLabels": [],
+                    "qSortCriterias": [
+                      {
+                        "qSortByState": 0,
+                        "qSortByFrequency": 0,
+                        "qSortByNumeric": 1,
+                        "qSortByAscii": 1,
+                        "qSortByLoadOrder": 1,
+                        "qSortByExpression": 0,
+                        "qExpression": {
+                          "qv": ""
+                        },
+                        "qSortByGreyness": 0
                       }
+                    ],
+                    "qNumberPresentations": [],
+                    "qReverseSort": false,
+                    "qActiveField": 0,
+                    "qLabelExpression": "",
+                    "autoSort": true,
+                    "cId": "wdpTfQ",
+                    "othersLabel": "Others"
+                  },
+                  "qNullSuppression": false,
+                  "qIncludeElemValue": false,
+                  "qOtherTotalSpec": {
+                    "qOtherMode": "OTHER_OFF",
+                    "qOtherCounted": {
+                      "qv": "10"
+                    },
+                    "qOtherLimit": {
+                      "qv": "0"
+                    },
+                    "qOtherLimitMode": "OTHER_GE_LIMIT",
+                    "qSuppressOther": false,
+                    "qForceBadValueKeeping": true,
+                    "qApplyEvenWhenPossiblyWrongResult": true,
+                    "qGlobalOtherGrouping": false,
+                    "qOtherCollapseInnerDimensions": false,
+                    "qOtherSortMode": "OTHER_SORT_DESCENDING",
+                    "qTotalMode": "TOTAL_OFF",
+                    "qReferencedExpression": {
+                      "qv": ""
+                    }
+                  },
+                  "qShowTotal": false,
+                  "qShowAll": false,
+                  "qOtherLabel": {
+                    "qv": "Others"
+                  },
+                  "qTotalLabel": {
+                    "qv": ""
+                  },
+                  "qCalcCond": {
+                    "qv": ""
+                  },
+                  "qAttributeExpressions": [],
+                  "qAttributeDimensions": [],
+                  "qCalcCondition": {
+                    "qCond": {
+                      "qv": ""
+                    },
+                    "qMsg": {
+                      "qv": ""
                     }
                   }
                 }
+              ],
+              "qMeasures": [
+                {
+                  "qLibraryId": this.mesId,
+                  "qDef": {
+                    "qLabel": "",
+                    "qDescription": "",
+                    "qTags": [],
+                    "qGrouping": "N",
+                    "qDef": "",
+                    "qNumFormat": {
+                      "qType": "U",
+                      "qnDec": 10,
+                      "qUseThou": 0,
+                      "qFmt": "",
+                      "qDec": "",
+                      "qThou": ""
+                    },
+                    "qRelative": false,
+                    "qBrutalSum": false,
+                    "qAggrFunc": "",
+                    "qAccumulate": 0,
+                    "qReverseSort": false,
+                    "qActiveExpression": 0,
+                    "qExpressions": [],
+                    "qLabelExpression": "",
+                    "autoSort": true,
+                    "cId": "TsLH",
+                    "numFormatFromTemplate": true
+                  },
+                  "qSortBy": {
+                    "qSortByState": 0,
+                    "qSortByFrequency": 0,
+                    "qSortByNumeric": -1,
+                    "qSortByAscii": 0,
+                    "qSortByLoadOrder": 1,
+                    "qSortByExpression": 0,
+                    "qExpression": {
+                      "qv": ""
+                    },
+                    "qSortByGreyness": 0
+                  },
+                  "qAttributeExpressions": [
+                    {
+                      "qExpression": `If([${this.date}_FC] > $(vMaxFCDate), Green(), Blue())`,
+                      "qLibraryId": "",
+                      "qAttribute": true,
+                      "id": "colorByExpression"
+                    }
+                  ],
+                  "qAttributeDimensions": [],
+                  "qCalcCond": {
+                    "qv": ""
+                  },
+                  "qCalcCondition": {
+                    "qCond": {
+                      "qv": ""
+                    },
+                    "qMsg": {
+                      "qv": ""
+                    }
+                  }
+                }
+              ],
+              "qInterColumnSortOrder": [
+                0,
+                1
+              ],
+              "qSuppressZero": false,
+              "qSuppressMissing": true,
+              "qInitialDataFetch": [
+                {
+                  "qLeft": 0,
+                  "qTop": 0,
+                  "qWidth": 17,
+                  "qHeight": 500
+                }
+              ],
+              "qReductionMode": "N",
+              "qMode": "S",
+              "qPseudoDimPos": -1,
+              "qNoOfLeftDims": -1,
+              "qAlwaysFullyExpanded": true,
+              "qMaxStackedCells": 5000,
+              "qPopulateMissing": false,
+              "qShowTotalsAbove": false,
+              "qIndentMode": false,
+              "qCalcCond": {
+                "qv": ""
+              },
+              "qSortbyYValue": 0,
+              "qTitle": {
+                "qv": ""
+              },
+              "qCalcCondition": {
+                "qCond": {
+                  "qv": ""
+                },
+                "qMsg": {
+                  "qv": ""
+                }
+              },
+              "qColumnOrder": [],
+              "qLayoutExclude": {
+                "qHyperCubeDef": {
+                  "qStateName": "",
+                  "qDimensions": [],
+                  "qMeasures": [],
+                  "qInterColumnSortOrder": [],
+                  "qSuppressZero": false,
+                  "qSuppressMissing": false,
+                  "qInitialDataFetch": [],
+                  "qReductionMode": "N",
+                  "qMode": "S",
+                  "qPseudoDimPos": -1,
+                  "qNoOfLeftDims": -1,
+                  "qAlwaysFullyExpanded": false,
+                  "qMaxStackedCells": 5000,
+                  "qPopulateMissing": false,
+                  "qShowTotalsAbove": false,
+                  "qIndentMode": false,
+                  "qCalcCond": {
+                    "qv": ""
+                  },
+                  "qSortbyYValue": 0,
+                  "qTitle": {
+                    "qv": ""
+                  },
+                  "qCalcCondition": {
+                    "qCond": {
+                      "qv": ""
+                    },
+                    "qMsg": {
+                      "qv": ""
+                    }
+                  },
+                  "qColumnOrder": []
+                }
               }
-            }
-            let keyNotNeedingMap = this.fields.filter(function (item) {
-              return item.tables.includes(factTable) && item.type == 'key';
-            });
-            for (let n = 0; n < keyNotNeedingMap.length; n++) {
-              factTableScript += `[${keyNotNeedingMap[n].field}]&`;
-            }
-            factTableScript = factTableScript.slice(0, -1);
-            script += factTableScript;
-            script += ` as %FCKey\n`;
-            script += `RESIDENT [${factTable}];\n\n`;
-            script += `[TMP_QWIK_FORECAST_${factTable}]:\n`;
-            script += `NOCONCATENATE\n`;
-            script += `LOAD * RESIDENT [${factTable}];\n`;
-            script += `DROP TABLE [${factTable}];\n\n`;
-          }
-
-          for (let t = 0; t < tablesToJoin.length; t++) {
-            script += `Join([TMP_QWIK_FORECAST_${factTable}])\n`;
-            script += `LOAD * RESIDENT [${tablesToJoin[t]}];\n\n`;
-          }
-          script += `[QWIK_FORECAST_${factTable}]:\n`;
-          script += `LOAD\n`;
-          script += `${this.fcKey} as %FCKey,\n`;
-          let dateField;
-          switch (this.dateAggr) {
-            case 'Daily':
-              dateField = `[${this.date}],\n`;
-              script += dateField;
-              break;
-            case 'Weekly':
-              dateField = `WeekName([${this.date}])`;
-              script += `${dateField} as [${this.date}_FC],\n`;
-              break;
-            case 'Monthly':
-              dateField = `MonthName([${this.date}])`;
-              script += `${dateField} as [${this.date}_FC],\n`;
-              break;
-          }
-          for (let m = 0; m < this.measures.length; m++) {
-            if (m == this.measures.length - 1) {
-              script += `${this.measures[m].aggr}([${this.measures[m].formula}]) as [${this.measures[m].formula}_FC]\n`;
-            }
-            else {
-              script += `${this.measures[m].aggr}([${this.measures[m].formula}]) as [${this.measures[m].formula}_FC],\n`;
-            }
-          }
-          script += `RESIDENT [TMP_QWIK_FORECAST_${factTable}]\nGROUP BY ${dateField}, ${this.fcKey};\n\n`;
-          //script += `DROP TABLE [TMP_QWIK_FORECAST_${factTable}];\n\n`;
-
-          script += `TMP_MAX_DATE:\n`;
-          script += `LOAD\n`;
-          script += `Max([${this.date}_FC]) as MaxDate\n`;
-          script += `RESIDENT [QWIK_FORECAST_${factTable}];\n\n`;
-
-          script += `LET vMaxFCDate = Peek('MaxDate', 0, 'TMP_MAX_DATE');\n`;
-          script += `DROP TABLE TMP_MAX_DATE;\n\n`;
-
-          script += `TMP_FC:\n`;
-          script += `LOAD DISTINCT \n`;
-          script += `%FCKey\n`;
-          script += `RESIDENT [QWIK_FORECAST_${factTable}];\n\n`;
-
-          script += `JOIN(TMP_FC)\n`;
-          script += `LOAD\n`;
-          switch (this.dateAggr) {
-            case 'Daily':
-              script += `Date($(vMaxFCDate) + RowNo()) as [${this.date}_FC]\n`;
-              break;
-            case 'Weekly':
-              script += `Date($(vMaxFCDate) + (RowNo() * 7)) as [${this.date}_FC]\n`;
-              break;
-            case 'Monthly':
-              script += `AddMonths($(vMaxFCDate), RowNo()) as [${this.date}_FC]\n`;
-              break;
-          }
-          script += `AUTOGENERATE ${this.datePeriod};\n\n`;
-
-          script += `CONCATENATE([QWIK_FORECAST_${factTable}])\n`;
-          script += `LOAD *,\n`;
-          script += `1 as FutureFlag,\n`;
-          for (let m = 0; m < this.measures.length; m++) {
-            if (m == this.measures.length - 1) {
-              script += `0 as [${this.measures[m].formula}_FC]\n`;
-            }
-            else {
-              script += `0 as [${this.measures[m].formula}_FC],\n`;
-            }
-          }
-          script += `RESIDENT TMP_FC;\n`;
-          script += `DROP TABLE TMP_FC;`;
-          console.log(script);
-
-          let factParams = {
-            qDimensions: [{
-              qDef: {
-                qFieldDefs: ["$Field"]
+            },
+            "showTitles": true,
+            "title": "",
+            "subtitle": "",
+            "footnote": {
+              "qStringExpression": {
+                "qExpr": "'Green = Forecast'"
               }
-            }],
-            qMeasures: [{
-              qDef: {
-                qDef: `Sum({<$Table={'${factTable}'}>}1)`
-              }
-            }],
-            qInitialDataFetch: [{
-              qHeight: 500,
-              qWidth: 2
-            }]
+            },
+            "showDetails": false,
+            "visualization": "linechart",
+            "isRecommended": true,
+            "qLayoutExclude": {
+              "disabled": {},
+              "quarantine": {}
+            },
+            "refLine": {
+              "refLines": []
+            },
+            "lineType": "line",
+            "stackedArea": false,
+            "separateStacking": true,
+            "scrollStartPos": 0,
+            "nullMode": "gap",
+            "dataPoint": {
+              "show": false,
+              "showLabels": false
+            },
+            "gridLine": {
+              "auto": true,
+              "spacing": 2
+            },
+            "color": {
+              "auto": false,
+              "mode": "byExpression",
+              "useBaseColors": "off",
+              "paletteColor": {
+                "index": 1
+              },
+              "useDimColVal": true,
+              "useMeasureGradient": true,
+              "persistent": false,
+              "expressionIsColor": true,
+              "expressionLabel": "",
+              "measureScheme": "sg",
+              "reverseScheme": false,
+              "dimensionScheme": "12",
+              "autoMinMax": true,
+              "measureMin": 0,
+              "measureMax": 10,
+              "colorExpression": `If([${this.date}_FC] > $(vMaxFCDate), Green(), Blue())`
+            },
+            "legend": {
+              "show": true,
+              "dock": "auto",
+              "showTitle": true
+            },
+            "dimensionAxis": {
+              "continuousAuto": true,
+              "show": "all",
+              "label": "auto",
+              "dock": "near"
+            },
+            "preferContinuousAxis": true,
+            "showMiniChartForContinuousAxis": true,
+            "measureAxis": {
+              "show": "all",
+              "dock": "near",
+              "spacing": 1,
+              "autoMinMax": true,
+              "minMax": "min",
+              "min": 0,
+              "max": 10,
+              "logarithmic": false
+            }
           };
-          try {
-            let cube = await app.createCube(factParams);
-            let fields = cube.layout.qHyperCube.qDataPages[0].qMatrix.map(function (item) {
-              return item[0].qText;
-            });
-          } catch (error) {
-            console.error(error);
-          }
-        },
-        addMeasure: async function () {
-          this.measures.push({ "id": this.measuresCount + 1, "aggr": "Sum", "formula": "" });
-          this.measuresCount = this.measuresCount + 1;
-          let querySelector = `textarea[name=qfMeasure${this.measuresCount}]`;
-          while (!document.querySelector(querySelector)) {
-            await new Promise(r => setTimeout(r, 10));
-          }
-          let measure = document.querySelector(querySelector);
-          new Tagify(measure, {
-            enforceWhitelist: true,
-            whitelist: $scope.fields,
-            callbacks: {
-            },
-            dropdown: {
-              enabled: 0,
-              maxItems: $scope.fields.length
-            },
-            mode: 'select'
-          });
-        },
-        removeMeasure: function () {
-          if (this.measuresCount != 1) {
-            this.measures.pop();
-            this.measuresCount = this.measuresCount - 1;
-          }
+          //let lineChart = await app.visualization.create('linechart', props);
+          //let lineId = lineChart.model.id;
+          let thisObject = await enigma.app.getObject($scope.layoutId);
+          thisObject.setProperties(props);
         }
       }
     });
+    let scope = angular.element(document.querySelector('.lui-dialog')).scope().$parent;
+    scope.$watch("input.formula", function (newValue, oldValue) {
+      if (newValue !== oldValue) {
+        scope.input.masterMeasure = `PythonProphet.Prophet('', 0.05, [${scope.input.date}_FC], ${scope.input.formula}, '${scope.input.dateAggr.toLowerCase()}', ${scope.input.datePeriod}, 'yhat', 5, '')`;
+      }
+    });
+
     let date = document.querySelector('textarea[name=qfDate]');
     new Tagify(date, {
       enforceWhitelist: true,
@@ -352,7 +564,7 @@ export default ['$scope', '$element', function ($scope, $element) {
       },
       dropdown: {
         enabled: 0,
-        maxItems: 4
+        maxItems: 3
       },
       mode: 'select'
     });
@@ -368,32 +580,52 @@ export default ['$scope', '$element', function ($scope, $element) {
       },
       mode: 'select'
     });
-    let group = document.querySelector('textarea[name=qfGroup]');
-    new Tagify(group, {
-      enforceWhitelist: true,
-      whitelist: $scope.fields,
-      callbacks: {
-      },
-      dropdown: {
-        enabled: 0,
-        maxItems: $scope.fields.length
-      }
-    });
+  };
 
-    let measure1 = document.querySelector('textarea[name=qfMeasure1]');
-    new Tagify(measure1, {
-      enforceWhitelist: true,
-      whitelist: $scope.fields,
-      callbacks: {
-      },
-      dropdown: {
-        enabled: 0,
-        maxItems: $scope.fields.length
-      },
-      mode: 'select'
+  $scope.createMeasure = function (measureName, formula) {
+    return new Promise(async function (resolve, reject) {
+      try {
+        let measure = await enigma.app.createMeasure({
+          qInfo: {
+            qId: '',
+            qType: 'measure'
+          },
+          qMeasure: {
+            qLabel: measureName,
+            qDef: formula
+          },
+          qMetaDef: {
+            title: measureName,
+            description: ''
+          }
+        });
+        resolve(measure);
+      } catch (error) {
+        reject(error);
+      }
     });
   };
 
+  $scope.createDimension = function (name, dimension) {
+    return new Promise(async function (resolve, reject) {
+      let dim = enigma.app.createDimension({
+        qInfo: {
+          qId: '',
+          qType: 'dimension'
+        },
+        qDim: {
+          qGrouping: 'N',
+          qFieldDefs: [dimension],
+          qFieldLabels: [dimension],
+          title: name
+        },
+        qMetaDef: {
+          title: name
+        }
+      });
+      resolve(dim);
+    });
+  };
 
   $scope.getFields = function () {
     return new Promise(function (resolve, reject) {
@@ -403,6 +635,21 @@ export default ['$scope', '$element', function ($scope, $element) {
             return item.qName;
           }));
         });
+      }
+      catch (err) {
+        reject(err);
+      }
+    });
+  };
+
+  $scope.getExtFunctions = function () {
+    return new Promise(async function (resolve, reject) {
+      try {
+        let extFunctions = await enigma.app.global.getFunctions({ "qGroup": "EXT" });
+        let functionNames = extFunctions.map(function (item) {
+          return item.qName;
+        }).sort(compare);
+        resolve(functionNames);
       }
       catch (err) {
         reject(err);
@@ -478,7 +725,6 @@ export default ['$scope', '$element', function ($scope, $element) {
     }
     return this;
   };
-
 
   function compare(a, b) {
     // Use toUpperCase() to ignore character casing
