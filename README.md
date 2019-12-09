@@ -4,11 +4,12 @@ A Qlik Sense extension which helps prepare your application for forecasting with
 ## Using Qwik Forecast
 
 ## Qwik Forecast Extension
-This extension relies on the Qwik Forecast Installer being first installed to work. You can find the installer including further documentation here: https://github.com/rileymd88/qwik-forecast-installer
+This extension relies on the Qwik Forecast Installer being first installed to work. You can find the installer including further documentation here: 
 1. Download the latest release from here: https://github.com/rileymd88/qwik-forecast/files/3941437/qwik-forecast.zip
 2. Import the extension using the Qlik Management Console
 3. Either create a new app with your data preferred data model or open an existing app
 4. Locate the extension from the asset panel and drag it onto a new sheet
+
 ![Qwik Forecast](https://raw.githubusercontent.com/rileymd88/data/master/qwik-forecast/qwik-forecast1.PNG) 
 5. Click on Start Forecast Setup to start the setup 
 6. Select the following:
@@ -27,9 +28,8 @@ This extension relies on the Qwik Forecast Installer being first installed to wo
 11. Now you can hit Reload App & Create Master Items. Hint) This step will reload the app so ensure that you have the correct access to be able to reload the app
 12. Do not worry if you receive an message saying an error occurred and that a reload is in process. This is a standard Qlik Sense Error message when reloading via APIs in the front end and you can simply click close once the app is done reloading
 13. If all has run smoothly you should get the following feedback from Qwik Forecast
-![Qwik Forecast](https://raw.githubusercontent.com/rileymd88/data/master/qwik-forecast/qwik-forecast7.PNG)
-14. Qwik Forecast has now successfully created a master dimension (Forecast Date) and a master measure (Forecast) for you. You can now either hit close and use those master items within your own visualization or you can click on Create Line Chart to have Qwik Forecast automatically convert itself into a standard Qlik Sense line chart using your newly created master items
 ![Qwik Forecast](https://raw.githubusercontent.com/rileymd88/data/master/qwik-forecast/qwik-forecast8.PNG)
+14. Qwik Forecast has now successfully created a master dimension (Forecast Date) and a master measure (Forecast) for you. You can now either hit close and use those master items within your own visualization or you can click on Create Line Chart to have Qwik Forecast automatically convert itself into a standard Qlik Sense line chart using your newly created master items
 15. If you chose to qlik on Create Line Chart you will get the following line chart. Hint) Green is when the forecast starts
 ![Qwik Forecast](https://raw.githubusercontent.com/rileymd88/data/master/qwik-forecast/qwik-forecast9.PNG)
 
