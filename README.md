@@ -13,6 +13,9 @@ If you want to do code changes to the extension follow these simple steps to get
 ## Release Notes v0.1
 * First beta release
 
+## Bugs and Requests
+Please raise a github issue for any bugs or requests
+
 # Original authors
 [github.com/rileymd88](https://github.com/rileymd88)
 
