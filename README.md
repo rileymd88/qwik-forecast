@@ -4,7 +4,7 @@ A Qlik Sense extension which helps prepare your application for forecasting with
 ## Using Qwik Forecast
 
 ## Qwik Forecast Extension
-This extension relies on the Qwik Forecast Installer being first installed to work. You can find the installer including further documentation here: 
+This extension relies on the Qwik Forecast Installer being first installed to work. You can find the installer including further documentation here: https://github.com/rileymd88/qwik-forecast-installer 
 1. Download the latest release from here: https://github.com/rileymd88/qwik-forecast/files/3941437/qwik-forecast.zip
 2. Import the extension using the Qlik Management Console
 3. Either create a new app with your data preferred data model or open an existing app
