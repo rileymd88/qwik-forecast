@@ -1,12 +1,19 @@
-<lui-dialog ng-init="init()" style="width: 80%; height: 80%;">
+<lui-dialog ng-init="init()" style="min-width: 600px; width: 600px; height: 700px;">
 	<lui-dialog-header>
 		<lui-dialog-title>Qwik Forecast</lui-dialog-title>
 	</lui-dialog-header>
 	<lui-dialog-body class="qwikForecastBody">
 		<div ng-show='input.step == 1'>
-			<textarea name='qfDate' id='qfDate' placeholder='Select a date'></textarea>
-			<textarea name='qfDateAggr' id='qfDateAggr' placeholder='Select a date aggregation level'></textarea>
-			<textarea name='qfDatePeriod' id='qfDatePeriod' placeholder='Input how many forecast periods'></textarea>
+			<div class='qfLabel'>Forecast Date</div>
+			<textarea name='qfDate' id='qfDate' placeholder='Select a date'>{{input.dateFields[0]}}</textarea>
+			<div class='qfLabel'>Forecast Date Aggregation Level</div>
+			<textarea name='qfDateAggr' id='qfDateAggr' placeholder='Select a date aggregation level'>Monthly</textarea>
+			<div class='qfLabel'>Forecast Periods</div>
+			<!-- <textarea name='qfDatePeriod' id='qfDatePeriod' placeholder='Input how many forecast periods'>2</textarea> -->
+			<div class="qfSliderContainer">
+				<div class="qfSliderLabel">{{input.forecastPeriods}}</div>
+				<input type="range" min="1" max="365" ng-model="input.forecastPeriods" class="qfSlider" id="qfSlider">
+			</div>
 		</div>
 		<div class="qfDimMesLabel" ng-show='input.step == 2'>Choose which fields you would like to be have as dimensions which can be filtered
 			and which fields should be measures which can be forecasted</div>
@@ -43,12 +50,22 @@
 					</div>
 				</div>
 			</div>
-			<div class='qfLabel'>Master Item Dimension: Forecast Date</div>
-			<textarea disabled class="lui-textarea">{{input.masterDimension}}</textarea>
-			<div class='qfLabel'>Master Item Measure: Forecast</div>
-			<textarea disabled class="lui-textarea">{{input.masterMeasure}}</textarea>
-			<div class='qfLabel'>Addition to Load Script</div>
-			<textarea disabled class="lui-textarea script">{{input.script}}</textarea>
+			<div class='qfLabel'>Preview Master Items and Script</div>
+			<div class="lui-switch">
+				<label class="lui-switch__label">
+				  <input type="checkbox" ng-model="input.showAdvanced" class="lui-switch__checkbox" aria-label="Label"/>
+				  <span class="lui-switch__wrap">
+					<span class="lui-switch__inner"></span>
+					<span class="lui-switch__switch"></span>
+				  </span>
+				</label>
+			  </div>
+			<div ng-show="input.showAdvanced" class='qfLabel'>Master Item Dimension: Forecast Date</div>
+			<textarea ng-show="input.showAdvanced" disabled class="lui-textarea">{{input.masterDimension}}</textarea>
+			<div ng-show="input.showAdvanced" class='qfLabel'>Master Item Measure: Forecast</div>
+			<textarea ng-show="input.showAdvanced" disabled class="lui-textarea">{{input.masterMeasure}}</textarea>
+			<div ng-show="input.showAdvanced" class='qfLabel'>Addition to Load Script</div>
+			<textarea ng-show="input.showAdvanced" disabled class="lui-textarea script">{{input.script}}</textarea>
 		</div>
 		<div class="qfReloadContainer" ng-show="input.step == 4">
 			<div ng-show="input.reloading" class="sbl-circ-path"></div>

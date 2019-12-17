@@ -10,7 +10,6 @@ export default ['$scope', '$element', function ($scope, $element) {
   let enigma = $scope.component.model.enigmaModel;
   let app = qlik.currApp($scope);
 
-
   $scope.layout.getScope = function () {
     return $scope;
   };
@@ -27,6 +26,7 @@ export default ['$scope', '$element', function ($scope, $element) {
       input: {
         step: 1,
         title: 'Prepare Date: Select Date Fields and Parameters',
+        forecastPeriods: 24,
         fields: $scope.fields,
         dateFields: $scope.dateFields,
         fieldType: [
@@ -152,12 +152,7 @@ export default ['$scope', '$element', function ($scope, $element) {
               this.script += `Date(AddMonths($(vMaxFCDate), RowNo())) as [${this.date}_FC]\n`;
               break;
           }
-          try {
-            this.datePeriod = JSON.parse(parentElement[2].value)[0].value;
-          }
-          catch {
-            this.datePeriod = parentElement[2].value;
-          }
+          this.datePeriod = this.forecastPeriods;
           this.script += `AUTOGENERATE ${this.datePeriod};\n\n`;
           this.script += `CONCATENATE([TMP_${this.dateTable}])\n`;
           this.script += `LOAD\n`;
@@ -565,18 +560,6 @@ export default ['$scope', '$element', function ($scope, $element) {
       dropdown: {
         enabled: 0,
         maxItems: 3
-      },
-      mode: 'select'
-    });
-    let datePeriod = document.querySelector('textarea[name=qfDatePeriod]');
-    new Tagify(datePeriod, {
-      enforceWhitelist: true,
-      whitelist: ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25', '26', '27', '28', '29', '30', '31', '32', '33', '34', '35', '36'],
-      callbacks: {
-      },
-      dropdown: {
-        enabled: 0,
-        maxItems: 36
       },
       mode: 'select'
     });
