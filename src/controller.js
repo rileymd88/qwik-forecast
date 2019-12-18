@@ -206,6 +206,7 @@ export default ['$scope', '$element', function ($scope, $element) {
           let reload = await enigma.app.doReload();
           this.reloading = false;
           if (reload == true) {
+            await enigma.app.doSave();
             this.reloadMsg += '✓\nReload finished ✓\n';
             let measure = await $scope.createMeasure('Forecast', this.masterMeasure);
             if (measure) {
