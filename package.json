@@ -1,6 +1,6 @@
 {
   "name": "qwik-forecast",
-  "version": "0.0.1",
+  "version": "0.0.3",
   "description": "An easy way to create time series forecasts in Qlik Sense",
   "homepage": "https://github.com/rileymd88/qwik-forecast",
   "repository": "https://github.com/rileymd88/qwik-forecast",

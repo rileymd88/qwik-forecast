@@ -194,41 +194,45 @@ export default ['$scope', '$element', function ($scope, $element) {
           this.step = 4;
           //this.title = 'Finalize Setup';
           this.reloading = true;
-          this.reloadMsg = 'Getting script\n';
+          this.reloadMsg = 'Getting script ';
           let script = await enigma.app.getScript();
+          this.reloadMsg += '✓\n';
           this.script = script + this.script;
-          this.reloadMsg += 'Setting script\n';
+          this.reloadMsg += 'Setting script ';
           await enigma.app.setScript(this.script);
-          this.reloadMsg += 'Reloading app\n';
+          this.reloadMsg += '✓\n';
+          this.reloadMsg += 'Reloading app ';
+          waitForElementToDisplay();
           let reload = await enigma.app.doReload();
           this.reloading = false;
           if (reload == true) {
-            this.reloadMsg += 'Reload finished\n';
+            this.reloadMsg += '✓\nReload finished ✓\n';
+            let measure = await $scope.createMeasure('Forecast', this.masterMeasure);
+            if (measure) {
+              this.mesId = measure.id;
+              this.reloadMsg += 'Master measure created ✓\n';
+            }
+            else {
+              this.reloadMsg += 'There was an error creating the master measure\n';
+            }
+            let dimension = await $scope.createDimension('Forecast Date', this.masterDimension);
+            if (dimension) {
+              this.dimId = dimension.id;
+              this.reloadMsg += 'Master dimension created ✓\n';
+            }
+            else {
+              this.reloadMsg += 'There was an error creating the master dimension\n';
+            }
+            if (reload && measure && dimension) {
+              this.reloadMsg += '\nSetup is finished! You can now click the button to create a new line chart or close this dialog and use the newly created master item dimension and measure';
+              this.error = false;
+            }
+            this.script = '';
           }
           else {
-            this.reloadMsg += 'There was an error while reloading the app. Try debugging this in the load script\n';
+            this.reloadMsg += '✕\n';
+            this.reloadMsg += '\nThere was an error while reloading the app. Try debugging this in the load script\n';
           }
-          let measure = await $scope.createMeasure('Forecast', this.masterMeasure);
-          if (measure) {
-            this.mesId = measure.id;
-            this.reloadMsg += 'Master measure created\n';
-          }
-          else {
-            this.reloadMsg += 'There was an error creating the master measure\n';
-          }
-          let dimension = await $scope.createDimension('Forecast Date', this.masterDimension);
-          if (dimension) {
-            this.dimId = dimension.id;
-            this.reloadMsg += 'Master dimension created\n';
-          }
-          else {
-            this.reloadMsg += 'There was an error creating the master dimension\n';
-          }
-          if (reload && measure && dimension) {
-            this.reloadMsg += 'Setup is finished! You can now click the button to create a new line chart or close this dialog and use the newly created master item dimension and measure';
-            this.error = false;
-          }
-          this.script = '';
         },
         createLineChart: async function () {
           let props = {
@@ -686,6 +690,17 @@ export default ['$scope', '$element', function ($scope, $element) {
     let random = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
     return random;
   };
+
+  function waitForElementToDisplay() {
+    if ($("[data-component='component']").length == 2) {
+      $("[data-component='component']")[1].remove();
+    }
+    else {
+      setTimeout(function () {
+        waitForElementToDisplay(100);
+      }, 100);
+    }
+  }
 
   String.prototype.replaceAll = function (searchStr, replaceStr) {
     var str = this;
