@@ -2,7 +2,7 @@
 A Qlik Sense extension which helps prepare your application for forecasting with a python analytic connection. It can be downloaded from here: https://github.com/rileymd88/qwik-forecast/releases. This extension only works when being used in combination with the Qwik Forecast Installer found here: https://github.com/rileymd88/qwik-forecast-installer
 
 ## Using Qwik Forecast
-[![Qwik Forecast in Action](https://raw.githubusercontent.com/rileymd88/data/master/qlik-bex-plugin/BEx8.png)](https://www.youtube.com/watch?v=7nsVEGci1c0)
+[![Qwik Forecast in Action](https://raw.githubusercontent.com/rileymd88/data/master/qlik-bex-plugin/qwik-forecast-video.png)](https://www.youtube.com/watch?v=cLJE_NYvgTM)
 
 ## Qwik Forecast Extension
 This extension relies on the Qwik Forecast Installer being first installed to work. You can find the installer including further documentation here: https://github.com/rileymd88/qwik-forecast-installer 
