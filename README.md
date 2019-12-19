@@ -12,7 +12,7 @@ This extension relies on the Qwik Forecast Installer being first installed to wo
 4. Locate the extension from the asset panel and drag it onto a new sheet
 
 ![Qwik Forecast](https://raw.githubusercontent.com/rileymd88/data/master/qwik-forecast/qwik-forecast1.PNG)<br/> 
-5. Click on Start Forecast Setup to start the setup 
+5. Click on Start Forecast Setup to start the setup
 6. Select the following:
 * The date you would like to use as a basis for your forecast. Qwik Forecast will only suggest fields which are tagged as $date. Hint: If you use the data manager Qlik will automatically detect and tag date fields as dates
 * Select the aggregation level you would like to have for your forecast
