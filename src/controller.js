@@ -117,7 +117,7 @@ export default ['$scope', '$element', function ($scope, $element) {
           }
           switch (this.dateAggr) {
             case 'Daily':
-              this.script = `[${this.date}],\n`;
+              this.script += `Date(Floor([${this.date}])) as [${this.date}_FC]\n`;
               break;
             case 'Weekly':
               this.script += `WeekStart([${this.date}]) as [${this.date}_FC]\n`;
@@ -163,8 +163,14 @@ export default ['$scope', '$element', function ($scope, $element) {
           this.extFunctions = await $scope.getExtFunctions();
           this.selectFunction = true;
           for (let e = 0; e < this.extFunctions.length; e++) {
-            if (this.extFunctions[e] == 'PythonProphet.Prophet') {
+            if (this.extFunctions[e].qName == 'PythonProphet.Prophet') {
               this.selectFunction = false;
+              if(this.extFunctions[e].qSignature == "num PythonProphet.Prophet( str adjustments, num changePoint, num dateStamp, num figures, str forecastLevel, num forecastPeriod, str forecastReturnType, num fourierOrder, str holidays, str outliers )") {
+                $scope.qwikFCVersion = 2;
+              }
+              else {
+                $scope.qwikFCVersion = 1;
+              }
             }
           }
           if (this.selectFunction) {
@@ -188,7 +194,12 @@ export default ['$scope', '$element', function ($scope, $element) {
           else {
             formula = this.formula;
           }
-          this.masterMeasure = `PythonProphet.Prophet('', 0.05, [${this.date}_FC], ${formula}, ${this.dateAggr.toLowerCase()}, ${this.datePeriod}, 'yhat', 5, '')`;
+          if($scope.qwikFCVersion == 1) {
+            this.masterMeasure = `PythonProphet.Prophet('', 0.05, [${this.date}_FC], ${formula}, ${this.dateAggr.toLowerCase()}, ${this.datePeriod}, 'yhat', 5, '')`;
+          }
+          if($scope.qwikFCVersion == 2) {
+            this.masterMeasure = `PythonProphet.Prophet('', 0.05, [${this.date}_FC], ${formula}, ${this.dateAggr.toLowerCase()}, ${this.datePeriod}, 'yhat', 5, '', '')`;
+          }
         },
         next3: async function () {
           this.step = 4;
@@ -540,7 +551,12 @@ export default ['$scope', '$element', function ($scope, $element) {
     let scope = angular.element(document.querySelector('.lui-dialog')).scope().$parent;
     scope.$watch("input.formula", function (newValue, oldValue) {
       if (newValue !== oldValue) {
-        scope.input.masterMeasure = `PythonProphet.Prophet('', 0.05, [${scope.input.date}_FC], ${scope.input.formula}, '${scope.input.dateAggr.toLowerCase()}', ${scope.input.datePeriod}, 'yhat', 5, '')`;
+        if($scope.qwikFCVersion == 1) {
+          scope.input.masterMeasure = `PythonProphet.Prophet('', 0.05, [${scope.input.date}_FC], ${scope.input.formula}, '${scope.input.dateAggr.toLowerCase()}', ${scope.input.datePeriod}, 'yhat', 5, '')`;
+        }
+        if($scope.qwikFCVersion == 2) {
+          scope.input.masterMeasure = `PythonProphet.Prophet('', 0.05, [${scope.input.date}_FC], ${scope.input.formula}, '${scope.input.dateAggr.toLowerCase()}', ${scope.input.datePeriod}, 'yhat', 5, '', '')`;
+        }
       }
     });
 
@@ -635,8 +651,8 @@ export default ['$scope', '$element', function ($scope, $element) {
       try {
         let extFunctions = await enigma.app.global.getFunctions({ "qGroup": "EXT" });
         let functionNames = extFunctions.map(function (item) {
-          return item.qName;
-        }).sort(compare);
+          return item;
+        });
         resolve(functionNames);
       }
       catch (err) {

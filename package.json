@@ -6,6 +6,7 @@
   "repository": "https://github.com/rileymd88/qwik-forecast",
   "author": "Riley MacDonald",
   "license": "MIT",
+  "qlikshare": "C://qlikshare",
   "scripts": {
     "build": "gulp build",
     "build:zip": "gulp zip",

@@ -5,9 +5,17 @@ var del = require('del');
 var webpackConfig = require('./webpack.config');
 var webpack = require('webpack');
 var pkg = require('./package.json');
+var fs = require('fs');
 
 var DIST = './dist';
 var VERSION = process.env.VERSION || 'local-dev';
+
+function copyExtFiles() {
+  return gulp.src('./dist/*').pipe(gulp.dest(`${pkg.qlikshare}/StaticContent/Extensions/${pkg.name}`));
+}
+
+
+
 
 gulp.task('qext', function () {
 	var qext = {
@@ -26,35 +34,35 @@ gulp.task('qext', function () {
 			'qlik-sense': '>=5.5.x'
 		}
 	};
-	if (pkg.contributors) {
-		qext.contributors = pkg.contributors;
-	}
-	var src = require('stream').Readable({
-		objectMode: true
-	});
-	src._read = function () {
-		this.push(new gutil.File({
-			cwd: '',
-			base: '',
-			path: pkg.name + '.qext',
-			contents: Buffer.from(JSON.stringify(qext, null, 4))
-		}));
-		this.push(null);
-	};
-	return src.pipe(gulp.dest(DIST));
+  if (pkg.contributors) {
+    qext.contributors = pkg.contributors;
+  }
+  var src = require('stream').Readable({
+    objectMode: true
+  });
+  src._read = function () {
+    this.push(new gutil.File({
+      cwd: '',
+      base: '',
+      path: pkg.name + '.qext',
+      contents: Buffer.from(JSON.stringify(qext, null, 4))
+    }));
+    this.push(null);
+  };
+  return src.pipe(gulp.dest(DIST));
 });
 
-gulp.task('clean', function(){
+gulp.task('clean', function () {
   return del([DIST], { force: true });
 });
 
-gulp.task('zip-build', function(){
+gulp.task('zip-build', function () {
   return gulp.src(DIST + '/**/*')
     .pipe(zip(`${pkg.name}_${VERSION}.zip`))
     .pipe(gulp.dest(DIST));
 });
 
-gulp.task('add-assets', function(){
+gulp.task('add-assets', function () {
   return gulp.src('./assets/**/*').pipe(gulp.dest(DIST));
 });
 
@@ -74,8 +82,12 @@ gulp.task('webpack-build', done => {
   });
 });
 
-gulp.task('build',
+gulp.task('init build',
   gulp.series('clean', 'webpack-build', 'qext', 'add-assets')
+);
+
+gulp.task('build',
+  gulp.series('clean', 'webpack-build', 'qext', 'add-assets', copyExtFiles)
 );
 
 gulp.task('zip',
