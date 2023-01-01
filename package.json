@@ -14,26 +14,26 @@
   },
   "keywords": [],
   "devDependencies": {
-    "@babel/core": "7.1.2",
+    "@babel/core": "7.20.7",
     "@babel/polyfill": "7.0.0",
     "@babel/preset-env": "7.1.0",
     "babel-eslint": "10.0.1",
-    "babel-loader": "8.0.4",
+    "babel-loader": "8.3.0",
     "del": "2.0.2",
     "eslint": "5.7.0",
-    "eslint-loader": "2.1.1",
+    "eslint-loader": "4.0.2",
     "gulp": "4.0.0",
     "gulp-util": "^3.0.7",
     "gulp-zip": "3.0.2",
     "jquery": "3.4.0",
     "stylelint": "8.4.0",
     "stylelint-webpack-plugin": "0.10.5",
-    "webpack": "4.20.2"
+    "webpack": "5.75.0"
   },
   "dependencies": {
     "@yaireo/tagify": "2.31.2",
-    "css-loader": "2.1.1",
-    "html-loader": "^0.5.5",
-    "style-loader": "^0.23.1"
+    "css-loader": "6.7.3",
+    "html-loader": "^4.2.0",
+    "style-loader": "^3.3.1"
   }
 }
